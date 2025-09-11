@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Điểm Sinh Viên</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #6B73FF 0%, #000DFF 100%);
+        }
+        .student-card {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .student-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .analysis-panel {
+            transition: all 0.5s ease;
+            transform: translateX(100%);
+        }
+        .analysis-panel.active {
+            transform: translateX(0);
+        }
+        .grade-A {
+            background-color: #4CAF50;
+        }
+        .grade-B {
+            background-color: #8BC34A;
+        }
+        .grade-C {
+            background-color: #FFC107;
+        }
+        .grade-D {
+            background-color: #FF9800;
+        }
+        .grade-F {
+            background-color: #F44336;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-white rounded-xl p-6 mb-8 shadow-lg" style="background: linear-gradient(90deg, #0052cc 0%, #ff6600 100%);">
+            <h1 class="text-3xl font-bold mb-2">Hệ Thống Quản Lý Điểm Sinh Viên Đại Học Đại Nam</h1>
+            <p class="opacity-90">Nhập điểm từ file Excel và phân tích tình trạng học tập</p>
+        </header>
+
+        <!-- Main Content -->
+        <!-- Dashboard Thống kê chung của lớp -->
+        <section class="bg-white rounded-xl shadow-md p-6 mb-8">
+        <section class="bg-white rounded-xl shadow-md p-3 mb-4 max-w-3xl mx-auto text-sm">
+            <h2 class="text-base font-bold text-gray-800 mb-2">Dashboard Thống kê chung của lớp</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                <div>
+                    <div class="text-xs font-semibold text-gray-600">Tổng số sinh viên</div>
+                    <div class="text-xl font-bold text-blue-600" id="total-students">--</div>
+                </div>
+                <div>
+                    <div class="text-xs font-semibold text-gray-600">Điểm trung bình cao nhất</div>
+                    <div class="text-xl font-bold text-green-600" id="max-avg-score">--</div>
+                </div>
+                <div>
+                    <div class="text-xs font-semibold text-gray-600">Điểm trung bình thấp nhất</div>
+                    <div class="text-xl font-bold text-red-600" id="min-avg-score">--</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                    <div class="text-xs font-semibold text-gray-600 mb-1">Top 5 sinh viên điểm cao nhất</div>
+                    <ul id="top-students" class="list-disc pl-4 text-green-700 text-xs"></ul>
+                </div>
+                <div>
+                    <div class="text-xs font-semibold text-gray-600 mb-1">Sinh viên cần hỗ trợ (điểm thấp nhất)</div>
+                    <ul id="low-students" class="list-disc pl-4 text-red-700 text-xs"></ul>
+                </div>
+            </div>
+        </section>
+        <!-- End Dashboard -->
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Left Panel - Student List -->
+            <div class="w-full lg:w-3/4 bg-white rounded-xl shadow-md p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Danh sách sinh viên lớp CNTT 17 -06</h2>
+                    <div>
+                        <label for="fileInput" class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                            <i class="fas fa-file-excel"></i>
+                            Nhập từ Excel
+                            <input id="fileInput" type="file" accept=".xlsx, .xls" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ và Tên</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lớp</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Xếp loại</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TBC HT10</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Điểm RL</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Student data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="emptyState" class="text-center py-12">
+                    <i class="fas fa-file-excel text-5xl text-gray-300 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-500">Chưa có dữ liệu sinh viên</h3>
+                    <p class="text-gray-400 mt-1">Vui lòng nhập file Excel để bắt đầu</p>
+                </div>
+            </div>
+
+            <!-- Right Panel - Analysis (Hidden by default) -->
+            <div id="analysisPanel" class="analysis-panel w-full lg:w-1/2 bg-white rounded-xl shadow-md p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Phân tích tình trạng học tập</h2>
+                    <button id="closeAnalysis" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div id="analysisContent">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                            <i class="fas fa-user-graduate text-blue-600 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 id="studentName" class="text-lg font-semibold text-gray-800">Nguyễn Văn A</h3>
+                            <p id="studentScore" class="text-gray-600">Điểm số: <span class="font-medium">8.5</span></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-500">Xếp loại</p>
+                            <p id="grade" class="text-xl font-bold grade-A px-2 py-1 rounded inline-block text-white">Giỏi</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-500">Vị trí trong lớp</p>
+                            <p id="rank" class="text-xl font-bold">5/50</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-700 mb-3">Biểu đồ phân bố điểm các kỳ</h4>
+                        <div id="scoreChart" class="h-48 bg-gray-50 rounded-lg flex items-end p-2 gap-1"></div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-medium text-gray-700 mb-3">Nhận xét</h4>
+                        <div id="comment" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r">
+                            <p>Sinh viên có kết quả học tập tốt, nằm trong top 10% của lớp. Cần duy trì phong độ và phát huy hơn nữa trong các môn học chuyên ngành.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dữ liệu sinh viên từ backend
+        let students = [];
+        let currentStudent = null;
+
+        // DOM elements
+        const fileInput = document.getElementById('fileInput');
+        const studentTableBody = document.getElementById('studentTableBody');
+        const emptyState = document.getElementById('emptyState');
+        const analysisPanel = document.getElementById('analysisPanel');
+        const closeAnalysis = document.getElementById('closeAnalysis');
+        const analysisContent = document.getElementById('analysisContent');
+        const studentName = document.getElementById('studentName');
+        const studentScore = document.getElementById('studentScore');
+        const grade = document.getElementById('grade');
+        const rank = document.getElementById('rank');
+        const comment = document.getElementById('comment');
+        const currentStudentBar = document.getElementById('currentStudentBar');
+
+        // Event listeners
+        fileInput.addEventListener('change', handleFileUpload);
+        closeAnalysis.addEventListener('click', () => {
+            analysisPanel.classList.remove('active');
+        });
+
+        // Gửi file lên backend và nhận dữ liệu sinh viên
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('http://localhost:3001/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                students = data.students || [];
+                renderStudentTable();
+                updateDashboard(students);
+            })
+            .catch(err => {
+                alert('Lỗi khi tải lên file hoặc kết nối backend!');
+                console.error(err);
+            });
+        }
+
+
+        // Thêm nút phân tích tất cả
+        function renderStudentTable() {
+            if (students.length === 0) {
+                emptyState.classList.remove('hidden');
+                studentTableBody.innerHTML = '';
+                return;
+            }
+            emptyState.classList.add('hidden');
+            let html = '';
+            students.forEach((student, index) => {
+                html += `
+                    <tr class="student-card hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${student.id}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${student.name}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${student.class}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${student.grade}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${student.tbc_ht10}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${student.rl}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="showAnalysis(${student.id})" class="text-blue-600 hover:text-blue-900">
+                                <i class="fas fa-chart-line mr-1"></i> Phân tích
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            studentTableBody.innerHTML = html;
+            // Đã bỏ nút phân tích tất cả bằng AI
+        }
+
+
+        // Gọi API /analyze để lấy nhận xét AI cho tất cả sinh viên
+        function analyzeAll() {
+            if (!students || students.length === 0) return;
+            // Hiển thị trạng thái đang phân tích
+            const btn = document.getElementById('analyzeAllBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang phân tích...';
+            fetch('http://localhost:3001/analyze', {
+                method: 'POST'
+            })
+            .then(res => res.json())
+            .then(data => {
+                students = data.students || students;
+                renderStudentTable();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-robot"></i> Phân tích tất cả bằng AI';
+                alert('Phân tích AI hoàn tất!');
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-robot"></i> Phân tích tất cả bằng AI';
+                alert('Lỗi khi phân tích AI!');
+                console.error(err);
+            });
+        }
+
+
+        // Hiển thị phân tích chi tiết và gọi AI nếu chưa có nhận xét
+        function showAnalysis(studentId) {
+            currentStudent = students.find(s => s.id === studentId);
+            if (!currentStudent) return;
+            studentName.textContent = currentStudent.name;
+            studentScore.innerHTML = `TBC HT10: <span class="font-medium">${currentStudent.tbc_ht10}</span> | Điểm RL: <span class="font-medium">${currentStudent.rl}</span>`;
+            // Hiển thị đúng xếp loại và màu
+            let gradeText = currentStudent.grade || 'N/A';
+            let gradeClass = '';
+            if (currentStudent.grade) {
+                const g = currentStudent.grade.toLowerCase();
+                if (g.includes('giỏi')) gradeClass = 'grade-A';
+                else if (g.includes('khá')) gradeClass = 'grade-B';
+                else if (g.includes('trung bình')) gradeClass = 'grade-C';
+                else if (g.includes('yếu')) gradeClass = 'grade-F';
+                else if (g.includes('đạt')) gradeClass = 'grade-D';
+            }
+            grade.textContent = gradeText;
+            grade.className = `text-xl font-bold px-2 py-1 rounded inline-block text-white ${gradeClass}`;
+            const sorted = [...students].sort((a, b) => b.tbc_ht10 - a.tbc_ht10);
+            const rankPosition = sorted.findIndex(s => s.id === studentId) + 1;
+            rank.textContent = `${rankPosition}/${students.length}`;
+
+            // Vẽ biểu đồ điểm các kỳ với nhãn tên kỳ
+            const scoreChart = document.getElementById('scoreChart');
+            scoreChart.innerHTML = '';
+            scoreChart.style.height = '150px'; // Vùng biểu đồ đủ chứa cột cao nhất (10 điểm = 10cm = 100px)
+            scoreChart.style.display = 'flex';
+            scoreChart.style.alignItems = 'flex-end';
+            scoreChart.style.justifyContent = 'stretch';
+            let scores = currentStudent.scores || [];
+            if (!scores.length) {
+                scores = [currentStudent.tbc_ht10, 7.5, 8.0, 8.2, 7.8, 8.5];
+            }
+            // Gradient màu cho cột
+            const colors = [
+                'linear-gradient(180deg, #93c5fd 0%, #3b82f6 100%)',
+                'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)',
+                'linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%)',
+                'linear-gradient(180deg, #34d399 0%, #059669 100%)',
+                'linear-gradient(180deg, #fbbf24 0%, #f59e42 100%)',
+                'linear-gradient(180deg, #f472b6 0%, #be185d 100%)'
+            ];
+            const termLabels = [
+                'Kì 1 Năm I',
+                'Kì 2 Năm I',
+                'Kì 3 Năm I',
+                'Kì 1 Năm II',
+                'Kì 2 Năm II',
+                'Kì 3 Năm II'
+            ];
+            // Mỗi điểm = 1cm = 10px, cột cao nhất là 10 điểm = 100px
+            scores.forEach((score, idx) => {
+                const barHeight = Math.max(0, score * 10); // 1 điểm = 10px
+                const barWrapper = document.createElement('div');
+                barWrapper.className = 'flex flex-col items-center';
+                barWrapper.style.flex = '1 1 0';
+                barWrapper.style.margin = '0';
+                // Bar
+                const bar = document.createElement('div');
+                bar.style.background = colors[idx%colors.length];
+                bar.style.borderRadius = '16px 16px 8px 8px';
+                bar.style.width = '70%';
+                bar.style.height = barHeight + 'px';
+                bar.style.position = 'relative';
+                bar.style.transition = 'height 0.3s';
+                // Label điểm trên đầu cột
+                const label = document.createElement('span');
+                label.textContent = score.toFixed(2);
+                label.style.position = 'absolute';
+                label.style.top = '-24px';
+                label.style.fontSize = '0.9rem';
+                label.style.color = '#222';
+                label.style.fontWeight = 'bold';
+                label.style.left = '50%';
+                label.style.transform = 'translateX(-50%)';
+                bar.appendChild(label);
+                barWrapper.appendChild(bar);
+                // Label tên kỳ dưới cột
+                const termLabel = document.createElement('span');
+                termLabel.textContent = termLabels[idx] || '';
+                termLabel.style.fontSize = '0.8rem';
+                termLabel.style.color = '#555';
+                termLabel.style.marginTop = '4px';
+                termLabel.style.textAlign = 'center';
+                termLabel.style.display = 'block';
+                barWrapper.appendChild(termLabel);
+                scoreChart.appendChild(barWrapper);
+            });
+
+            // Nếu chưa có nhận xét AI thì gọi API /analyze cho sinh viên này
+            function renderSuggestion() {
+                // Gợi ý khoá học/sách mẫu
+                const suggestions = [
+                    {
+                        type: 'Khoá học online',
+                        items: [
+                            { name: 'Coursera: Learning How to Learn', url: 'https://www.coursera.org/learn/learning-how-to-learn' },
+                            { name: 'Khan Academy: Computer Science', url: 'https://www.khanacademy.org/computing/computer-science' },
+                            { name: 'edX: Academic and Business Writing', url: 'https://www.edx.org/course/academic-and-business-writing' }
+                        ]
+                    },
+                    {
+                        type: 'Sách hay',
+                        items: [
+                            { name: 'Tư duy nhanh và chậm - Daniel Kahneman' },
+                            { name: '7 Thói quen hiệu quả - Stephen Covey' },
+                            { name: 'Lập trình viên xuất sắc - Jeff Atwood' }
+                        ]
+                    }
+                ];
+                let html = `<div class='mt-6'><h4 class='font-medium text-gray-700 mb-2'>Gợi ý bổ sung kiến thức</h4>`;
+                suggestions.forEach(sg => {
+                    html += `<div class='mb-2'><span class='font-semibold'>${sg.type}:</span> <ul class='list-disc ml-6'>`;
+                    sg.items.forEach(item => {
+                        if (item.url) {
+                            html += `<li><a href='${item.url}' target='_blank' class='text-blue-600 underline'>${item.name}</a></li>`;
+                        } else {
+                            html += `<li>${item.name}</li>`;
+                        }
+                    });
+                    html += `</ul></div>`;
+                });
+                html += `</div>`;
+                return html;
+            }
+
+            if (!currentStudent.aiComment || currentStudent.aiComment.trim() === "") {
+                comment.innerHTML = `<p><i class='fas fa-spinner fa-spin'></i> Đang phân tích AI...</p>`;
+                fetch('http://localhost:3001/analyzeOne', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ student: currentStudent })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.aiComment) {
+                        // Xử lý \n thành <br>
+                        currentStudent.aiComment = data.aiComment;
+                        let formattedComment = currentStudent.aiComment.replace(/\n/g, '<br>');
+                        // Xử lý **text** thành <strong>text</strong>
+                        formattedComment = formattedComment.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        comment.innerHTML = `<p>${formattedComment}</p>` + renderSuggestion();
+                    } else {
+                        comment.innerHTML = `<p>Không có nhận xét AI.</p>` + renderSuggestion();
+                    }
+                })
+                .catch(err => {
+                    comment.innerHTML = `<p>Lỗi khi phân tích AI.</p>` + renderSuggestion();
+                    console.error(err);
+                });
+            } else {
+                // Xử lý \n thành <br> nếu đã có nhận xét
+                let formattedComment = currentStudent.aiComment.replace(/\n/g, '<br>');
+                formattedComment = formattedComment.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                comment.innerHTML = `<p>${formattedComment}</p>` + renderSuggestion();
+            }
+            analysisPanel.classList.add('active');
+        }
+    </script>
+<script>
+// Giả sử dữ liệu sinh viên đã có dạng sau:
+// const students = [
+//   { name: "Nguyễn Văn A", avg: 8.2, scores: [7.5, 8.0, 8.5, 9.0, 8.0, 8.2] }, ...
+// ];
+
+function updateDashboard(students) {
+    // Tổng số sinh viên
+    document.getElementById('total-students').textContent = students.length;
+    // Điểm trung bình cao nhất
+    const maxAvg = Math.max(...students.map(s => s.tbc_ht10));
+    document.getElementById('max-avg-score').textContent = isFinite(maxAvg) ? maxAvg.toFixed(2) : '--';
+    // Điểm trung bình thấp nhất
+    const minAvg = Math.min(...students.map(s => s.tbc_ht10));
+    document.getElementById('min-avg-score').textContent = isFinite(minAvg) ? minAvg.toFixed(2) : '--';
+
+    // Top 5 sinh viên điểm cao nhất
+    const top5 = [...students].sort((a,b)=>b.tbc_ht10-a.tbc_ht10).slice(0,5);
+    document.getElementById('top-students').innerHTML = top5.map(s=>`<li>${s.name} (${s.tbc_ht10})</li>`).join('');
+    // Sinh viên điểm thấp nhất (cần hỗ trợ)
+    const low5 = [...students].sort((a,b)=>a.tbc_ht10-b.tbc_ht10).slice(0,5);
+    document.getElementById('low-students').innerHTML = low5.map(s=>`<li>${s.name} (${s.tbc_ht10})</li>`).join('');
+}
+
+// Sau khi có dữ liệu students, gọi updateDashboard(students)
+// Ví dụ:
+// updateDashboard(students);
+</script>
+</body>
+</html>
